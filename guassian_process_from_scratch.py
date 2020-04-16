@@ -17,6 +17,9 @@ def plot_gp(mu, cov, X, X_train=None, Y_train=None, samples=[]):
     plt.legend()
 
 
+def weiner_kernel(X1, X2):
+    return np.array([[min([x, y])[0] for x in X2] for y in X1])
+
 def rbf_kernel(X1, X2, l=1.0, sigma_f=1.0):
     '''
     Isotropic squared exponential kernel. Computes
@@ -34,7 +37,8 @@ def rbf_kernel(X1, X2, l=1.0, sigma_f=1.0):
 
 
 def kernel(X1, X2, *args, **kwargs):
-  return rbf_kernel(X1, X2, *args, **kwargs)
+    return weiner_kernel(X1, X2)
+  #return rbf_kernel(X1, X2, *args, **kwargs)
 
 
 def posterior_predictive(X_test, X_train, Y_train, l=1.0, sigma_f=1.0, sigma_y=1e-8):
@@ -66,6 +70,8 @@ def posterior_predictive(X_test, X_train, Y_train, l=1.0, sigma_f=1.0, sigma_y=1
 
 
 ################Prior########################
+
+
 # Finite number of points
 X_test = np.arange(-5, 5, 0.2).reshape(-1, 1)
 
@@ -101,6 +107,5 @@ print(entropy)
 #likelihood/=sum(likelihood)
 plot_gp(mu_s, cov_s, X_test, X_train=X_train, Y_train=Y_train, samples=Y_test)
 plt.show()
-
 
 
