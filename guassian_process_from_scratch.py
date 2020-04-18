@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from numpy.linalg import inv
 from scipy.stats import multivariate_normal
+from kernels import weiner_kernel, rbf_kernel
 
 def plot_gp(mu, cov, X, X_train=None, Y_train=None, samples=[]):
     X = X.ravel()
@@ -15,25 +16,6 @@ def plot_gp(mu, cov, X, X_train=None, Y_train=None, samples=[]):
     if X_train is not None:
         plt.plot(X_train, Y_train, 'rx')
     plt.legend()
-
-
-def weiner_kernel(X1, X2):
-    return np.array([[min([x, y])[0] for x in X2] for y in X1])
-
-def rbf_kernel(X1, X2, l=1.0, sigma_f=1.0):
-    '''
-    Isotropic squared exponential kernel. Computes
-    a covariance matrix from points in X1 and X2.
-
-    Args:
-        X1: Array of m points (m x d).
-        X2: Array of n points (n x d).
-
-    Returns:
-        Covariance matrix (m x n).
-    '''
-    sqdist = np.sum(X1 ** 2, 1).reshape(-1, 1) + np.sum(X2 ** 2, 1) - 2 * np.dot(X1, X2.T)
-    return sigma_f ** 2 * np.exp(-0.5 / l ** 2 * sqdist)
 
 
 def kernel(X1, X2, *args, **kwargs):
@@ -64,8 +46,8 @@ def posterior_predictive(X_test, X_train, Y_train, l=1.0, sigma_f=1.0, sigma_y=1
     K_s = kernel(X_train, X_test, l, sigma_f)
     K_ss = kernel(X_test, X_test, l, sigma_f) + 1e-8 * np.eye(len(X_test))
     K_inv = inv(K)
-    mu_s = K_s.T.dot(K_inv).dot(Y_train)
-    cov_s = K_ss - K_s.T.dot(K_inv).dot(K_s)
+    mu_s = np.transpose(K_s).dot(K_inv).dot(Y_train)
+    cov_s = K_ss - np.transpose(K_s).dot(K_inv).dot(K_s)
     return mu_s, cov_s
 
 
