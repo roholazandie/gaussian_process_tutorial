@@ -1,2 +1,4 @@
 gpytorch
 matplotlib
+plotly
+pandas

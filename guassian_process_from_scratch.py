@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from numpy.linalg import inv
 from scipy.stats import multivariate_normal
+
+from gpr_best_hyperparameters import best_hyperparamters
 from kernels import weiner_kernel, rbf_kernel
 
 def plot_gp(mu, cov, X, X_train=None, Y_train=None, samples=[]):
@@ -19,8 +21,8 @@ def plot_gp(mu, cov, X, X_train=None, Y_train=None, samples=[]):
 
 
 def kernel(X1, X2, *args, **kwargs):
-    return weiner_kernel(X1, X2)
-  #return rbf_kernel(X1, X2, *args, **kwargs)
+    #return weiner_kernel(X1, X2)
+    return rbf_kernel(X1, X2, *args, **kwargs)
 
 
 def posterior_predictive(X_test, X_train, Y_train, l=1.0, sigma_f=1.0, sigma_y=1e-8):
@@ -90,4 +92,10 @@ print(entropy)
 plot_gp(mu_s, cov_s, X_test, X_train=X_train, Y_train=Y_train, samples=Y_test)
 plt.show()
 
-
+##############best hyperparamters using minimization of NLL ############
+best_l, best_sigma_f = best_hyperparamters(X_train, Y_train)
+print("best l", best_l)
+print("best sigma_f", best_sigma_f)
+mu_s, cov_s = posterior_predictive(X_test, X_train, Y_train, l=best_l, sigma_f=best_sigma_f)
+plot_gp(mu_s, cov_s, X_test, X_train=X_train, Y_train=Y_train, samples=Y_test)
+plt.show()
