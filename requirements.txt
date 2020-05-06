@@ -2,3 +2,4 @@ gpytorch
 matplotlib
 plotly
 pandas
+GPy
