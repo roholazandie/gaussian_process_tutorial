@@ -1,6 +1,7 @@
 ## Gaussian Process Tutorials
 This repo contains codes and best practices to learn gp.
 
+- a lot of codes are borrowed from Neil Lawrence works and codes
 
 ## Readings
 The curated list of best reading on gp on the web:

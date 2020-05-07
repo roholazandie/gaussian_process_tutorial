@@ -36,5 +36,8 @@ xt = np.linspace(1870, 2030, 200)[:, np.newaxis]
 yt_mean, yt_var = gp_regression.predict(xt)
 yt_sd = np.sqrt(yt_var)
 
+# draw some samples from the posterior
+samples = gp_regression.posterior_samples(xt, size=1).squeeze(1)
+
 # plot
-plot_gp(yt_mean, yt_var, xt, X_train=x, Y_train=y)
+plot_gp(yt_mean, yt_var, xt, X_train=x, Y_train=y, samples=samples)
