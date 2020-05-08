@@ -1,9 +1,10 @@
-import math
 import torch
-import gpytorch
-from matplotlib import pyplot as plt
 from gpytorch import models
 from gpytorch import means, kernels, distributions, likelihoods, mlls, settings
+import numpy as np
+import pods
+
+from visualization import plot_gp
 
 
 class ExactGPModel(models.ExactGP):
@@ -19,12 +20,9 @@ class ExactGPModel(models.ExactGP):
         return distributions.MultivariateNormal(mean_x, covar_x)
 
 
-# Training data is 100 points in [0,1] inclusive regularly spaced
-train_x = torch.linspace(0, 1, 300)
-# True function is sin(2*pi*x) with Gaussian noise
-train_y = torch.sin(train_x * (2 * math.pi)) + torch.randn(train_x.size()) * math.sqrt(0.04)
-
-
+data = pods.datasets.olympic_marathon_men()
+train_x = torch.from_numpy(data["X"]).squeeze(-1)
+train_y = torch.from_numpy(data["Y"]).squeeze(-1)# + torch.randn(train_x.size()) * np.sqrt(0.04)
 
 likelihood = likelihoods.GaussianLikelihood()
 model = ExactGPModel(train_x, train_y, likelihood)
@@ -37,13 +35,13 @@ optimizer = torch.optim.Adam([{'params': model.parameters()}], lr=0.1)
 ##loss for gp
 mll = mlls.ExactMarginalLogLikelihood(likelihood, model)
 
-training_iter = 50
+training_iter = 700
 for i in range(training_iter):
     optimizer.zero_grad()
 
     output = model(train_x)
 
-    loss = -mll(output, train_y)
+    loss = -mll(output, train_y) # this gives the marginal loglikelihood  log(p(y|X))
     loss.backward()
 
     print('Iter %d/%d - Loss: %.3f   lengthscale: %.3f   noise: %.3f' % (
@@ -54,31 +52,21 @@ for i in range(training_iter):
     optimizer.step()
 
 
-
-# Get into evaluation (predictive posterior) mode
 model.eval()
 likelihood.eval()
 
 # Test points are regularly spaced along [0,1]
 # Make predictions by feeding model through likelihood
 with torch.no_grad(), settings.fast_pred_var():
-    test_x = torch.linspace(0, 1, 51)
-    observed_pred = likelihood(model(test_x))
+    test_x = torch.from_numpy(np.linspace(1870, 2030, 200)[:, np.newaxis])
+    f_preds = model(test_x)
+    y_pred = likelihood(f_preds)
 
 
+
+# plot
 with torch.no_grad():
-    # Initialize plot
-    f, ax = plt.subplots(1, 1, figsize=(4, 3))
-
-    # Get upper and lower confidence bounds
-    lower, upper = observed_pred.confidence_region()
-    # Plot training data as black stars
-    ax.plot(train_x.numpy(), train_y.numpy(), 'k*')
-    # Plot predictive means as blue line
-    ax.plot(test_x.numpy(), observed_pred.mean.numpy(), 'b')
-    # Shade between the lower and upper confidence bounds
-    ax.fill_between(test_x.numpy(), lower.numpy(), upper.numpy(), alpha=0.5)
-    ax.set_ylim([-3, 3])
-    ax.legend(['Observed Data', 'Mean', 'Confidence'])
-
-    plt.show()
+    mean = y_pred.mean.numpy()
+    var = y_pred.variance.numpy()
+    samples = y_pred.sample().numpy()
+    plot_gp(mean, var, test_x.numpy(), X_train=train_x.numpy(), Y_train=train_y.numpy(), samples=samples)

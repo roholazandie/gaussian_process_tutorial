@@ -1,5 +1,5 @@
 import numpy as np
-from GPy.kern import Matern32, GridRBF
+from GPy.kern import Matern32, GridRBF, RBF
 from GPy.models import GPRegression
 import pods
 import matplotlib.pyplot as plt
@@ -14,12 +14,13 @@ x = data["X"]
 y = data["Y"]
 
 # choose a kernel
-kernel = Matern32(input_dim=1, variance=2.0)
+#kernel = Matern32(input_dim=1, variance=2.0)
 #kernel = GridRBF(input_dim=1)
+#kernel = RBF(input_dim=1, variance=2.0)
 
 
 # gp regression and optimize the paramters using logliklihood
-gp_regression = GPRegression(x, y, kernel=kernel)
+gp_regression = GPRegression(x, y)
 
 #gp_regression.kern.lengthscale = 500
 #gp_regression.likelihood.variance = 0.001
