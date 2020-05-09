@@ -1,18 +1,31 @@
 import torch
 from gpytorch import models
 from gpytorch import means, kernels, distributions, likelihoods, mlls, settings
+from gpytorch.utils.grid import choose_grid_size
 import numpy as np
 import pods
 import time
 from visualization import plot_gp
 
 
-class ExactGPModel(models.ExactGP):
+#SKI (or KISS-GP) is a great way to scale a GP up to very large datasets (100,000+ data points).
+# Kernel interpolation for scalable structured Gaussian processes (KISS-GP)
+# was introduced in this paper: http://proceedings.mlr.press/v37/wilson15.pdf
+
+# SKI is asymptotically very fast (nearly linear), very precise (error decays cubically)
+
+class StructredKernelGaussianProcess(models.ExactGP):
 
     def __init__(self, x_train, y_train, likelihood):
         super().__init__(x_train, y_train, likelihood)
+        # SKI requires a grid size hyperparameter. This util can help with that.
+        # Here we are using a grid that has the same number of points as the training data (a ratio of 1.0).
+        # Performance can be sensitive to this parameter, so you may want to adjust it for your own problem on a validation set
+        grid_size = choose_grid_size(x_train, ratio=1.0)
         self.mean_module = means.ConstantMean()
-        self.covar_module = kernels.ScaleKernel(kernels.RBFKernel())
+        self.covar_module = kernels.ScaleKernel(kernels.GridInterpolationKernel(kernels.RBFKernel(),
+                                                                                grid_size=grid_size,
+                                                                                num_dims=1))
 
     def forward(self, x):
         mean_x = self.mean_module(x)
@@ -21,11 +34,12 @@ class ExactGPModel(models.ExactGP):
 
 
 data = pods.datasets.olympic_marathon_men()
-x_train = torch.from_numpy(data["X"]).squeeze(-1)
-y_train = torch.from_numpy(data["Y"]).squeeze(-1)# + torch.randn(train_x.size()) * np.sqrt(0.04)
+x_train = torch.from_numpy(data["X"]).squeeze(-1).type(torch.float32)
+y_train = torch.from_numpy(data["Y"]).squeeze(-1).type(torch.float32)# + torch.randn(train_x.size()) * np.sqrt(0.04)
+
 
 likelihood = likelihoods.GaussianLikelihood()
-model = ExactGPModel(x_train, y_train, likelihood)
+model = StructredKernelGaussianProcess(x_train, y_train, likelihood)
 
 x_train = x_train.cuda()
 y_train = y_train.cuda()
@@ -36,12 +50,13 @@ likelihood = likelihood.cuda()
 model.train()
 likelihood.train()
 
+
 optimizer = torch.optim.Adam([{'params': model.parameters()}], lr=0.1)
 
 ##loss for gp
 marginal_loglikelihood = mlls.ExactMarginalLogLikelihood(likelihood, model)
 
-training_iter = 2000
+training_iter = 1000
 for i in range(training_iter):
     optimizer.zero_grad()
 
@@ -50,10 +65,7 @@ for i in range(training_iter):
     loss = -marginal_loglikelihood(output, y_train) # this gives the marginal loglikelihood  log(p(y|X))
     loss.backward()
 
-    print('Iter %d/%d - Loss: %.3f   lengthscale: %.3f   noise: %.3f' % (
-        i + 1, training_iter, loss.item(),
-        model.covar_module.base_kernel.lengthscale.item(),
-        model.likelihood.noise.item()))
+    print(f'Iter {i + 1} - Loss: {loss.item()}   noise: {model.likelihood.noise.item()}')
 
     optimizer.step()
 
@@ -61,24 +73,12 @@ for i in range(training_iter):
 model.eval()
 likelihood.eval()
 
-# Test points are regularly spaced along [0,1]
-# Make predictions by feeding model through likelihood
-# LOVE: fast_pred_var is used for faster computation of predictive posterior
-# https://arxiv.org/pdf/1803.06058.pdf
-# This can be especially useful in settings like small-scale Bayesian optimization,
-# where predictions need to be made at enormous numbers of candidate points,
-# but there aren't enough training examples to necessarily warrant the use of sparse GP methods
-# max_root_decomposition_size(35) affects the accuracy of the LOVE solves (larger is more accurate, but slower
-t1 = time.time()
+
 with torch.no_grad(), settings.fast_pred_var(), settings.max_root_decomposition_size(25):
-    x_test = torch.from_numpy(np.linspace(1870, 2030, 200)[:, np.newaxis])
+    x_test = torch.from_numpy(np.linspace(1870, 2030, 200)[:, np.newaxis]).type(torch.float32)
     x_test = x_test.cuda()
     f_preds = model(x_test)
     y_pred = likelihood(f_preds)
-
-t2 = time.time()
-print(t2-t1)
-
 
 # plot
 with torch.no_grad():
@@ -86,3 +86,5 @@ with torch.no_grad():
     var = y_pred.variance.cpu().numpy()
     samples = y_pred.sample().cpu().numpy()
     plot_gp(mean, var, x_test.cpu().numpy(), X_train=x_train.cpu().numpy(), Y_train=y_train.cpu().numpy(), samples=samples)
+
+

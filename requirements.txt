@@ -3,3 +3,5 @@ matplotlib
 plotly
 pandas
 GPy
+
+pyro-ppl
