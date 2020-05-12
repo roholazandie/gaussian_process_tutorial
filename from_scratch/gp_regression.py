@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from numpy.linalg import inv
 from scipy.stats import multivariate_normal
-
+from visualization import plot_gp_2D
 from from_scratch.gpr_best_hyperparameters import best_hyperparamters
 from from_scratch.kernels import kernel, rbf
 
@@ -93,4 +93,28 @@ print("best l", best_l)
 print("best sigma_f", best_sigma_f)
 mu_s, cov_s = posterior_predictive(X_test, X_train, Y_train, l=best_l, sigma_f=best_sigma_f)
 plot_gp(mu_s, cov_s, X_test, X_train=X_train, Y_train=Y_train, samples=Y_test)
+plt.show()
+
+
+
+##########################3D gaussian regression ############
+noise_2D = 0.1
+
+rx, ry = np.arange(-5, 5, 0.3), np.arange(-5, 5, 0.3)
+gx, gy = np.meshgrid(rx, rx)
+
+X_2D = np.c_[gx.ravel(), gy.ravel()]
+
+X_2D_train = np.random.uniform(-4, 4, (100, 2))
+Y_2D_train = np.sin(0.5 * np.linalg.norm(X_2D_train, axis=1)) + \
+             noise_2D * np.random.randn(len(X_2D_train))
+
+mu_s, _ = posterior_predictive(X_2D, X_2D_train, Y_2D_train, sigma_y=noise_2D)
+
+plot_gp_2D(gx, gy, mu_s, X_2D_train, Y_2D_train, f'Before parameter optimization: l={1.00} sigma_f={1.00}', 1)
+
+best_l, best_sigma_f = best_hyperparamters(X_2D_train, Y_2D_train, noise_2D)
+
+mu_s, _ = posterior_predictive(X_2D, X_2D_train, Y_2D_train, l=best_l, sigma_f=best_sigma_f, sigma_y=noise_2D)
+plot_gp_2D(gx, gy, mu_s, X_2D_train, Y_2D_train, f'After parameter optimization: l={best_l:.2f} sigma_f={best_sigma_f:.2f}', 2)
 plt.show()

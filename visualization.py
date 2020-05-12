@@ -1,13 +1,15 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+from matplotlib import cm
+
 
 def animate_multi_plots(data, colors=None, interval=100):
     plotlays = list(range(data.shape[1]))
 
     fig = plt.figure()
     ax = plt.axes(xlim=(0, np.shape(data)[0]), ylim=(np.min(data), np.max(data)))
-    #timetext = ax.text(0.5, 50, '')
+    # timetext = ax.text(0.5, 50, '')
 
     lines = []
     for index, lay in enumerate(plotlays):
@@ -19,15 +21,15 @@ def animate_multi_plots(data, colors=None, interval=100):
 
     def init():
         for line in lines:
-            line.set_data([],[])
+            line.set_data([], [])
         return lines
 
     def animate(i):
-        #timetext.set_text(i)
+        # timetext.set_text(i)
         x = np.array(range(1, data.shape[0] + 1))
         for lnum, line in enumerate(lines):
             line.set_data(x, data[:, plotlays[lnum] - 1, i])
-        return tuple(lines)# + (timetext,)
+        return tuple(lines)  # + (timetext,)
 
     anim = animation.FuncAnimation(fig, animate, init_func=init, frames=np.shape(data)[2], interval=interval, blit=True)
 
@@ -41,12 +43,12 @@ def pred_range(x, portion=0.2, points=200, randomize=False):
     :param portion: portion of the range to extend (default 0.2)
     :param points: number of points in the range.
     :param randomize: whether tho randomize the points slightly (add small Gaussian noise to each input location)."""
-    span = x.max()-x.min()
-    xt = np.linspace(x.min()-portion*span, x.max()+portion*span, points)[:, np.newaxis]
+    span = x.max() - x.min()
+    xt = np.linspace(x.min() - portion * span, x.max() + portion * span, points)[:, np.newaxis]
     if not randomize:
         return xt
     else:
-        return xt + np.random.randn(points, 1)*span/float(points)
+        return xt + np.random.randn(points, 1) * span / float(points)
 
 
 def model_output(model, samples=np.array([]), output_dim=0, scale=1.0, offset=0.0, title="", xlim=None, portion=0.2):
@@ -68,10 +70,10 @@ def model_output(model, samples=np.array([]), output_dim=0, scale=1.0, offset=0.
         xlim = [xt.min(), xt.max()]
 
     yt_mean, yt_var = model.predict(xt)
-    yt_mean = yt_mean*scale + offset
-    yt_var *= scale*scale
+    yt_mean = yt_mean * scale + offset
+    yt_var *= scale * scale
     yt_sd = np.sqrt(yt_var)
-    if yt_sd.shape[1]>1:
+    if yt_sd.shape[1] > 1:
         yt_sd = yt_sd[:, output_dim]
 
     plot_gp(yt_mean, yt_var, xt, model.X.flatten(), model.Y.flatten(), samples=samples, title=title)
@@ -85,7 +87,7 @@ def plot_gp(mu, var, X, X_train=None, Y_train=None, samples=np.array([]), title=
     plt.fill_between(X, mu + uncertainty, mu - uncertainty, alpha=0.1)
     plt.plot(X, mu, label='Mean')
 
-    #for i, sample in enumerate(samples):
+    # for i, sample in enumerate(samples):
     if samples.any():
         plt.plot(X, samples, 'o', alpha=0.4, markersize=5)
 
@@ -94,6 +96,14 @@ def plot_gp(mu, var, X, X_train=None, Y_train=None, samples=np.array([]), title=
     plt.legend()
     plt.title(title)
     plt.show()
+
+
+def plot_gp_2D(gx, gy, mu, X_train, Y_train, title, i):
+    ax = plt.gcf().add_subplot(1, 2, i, projection='3d')
+    ax.plot_surface(gx, gy, mu.reshape(gx.shape), cmap=cm.coolwarm, linewidth=0, alpha=0.2, antialiased=False)
+    ax.scatter(X_train[:, 0], X_train[:, 1], Y_train, c=Y_train, cmap=cm.coolwarm)
+    ax.set_title(title)
+    #plt.show()
 
 
 def visualize_pinball(model, ax=None, scale=1.0, offset=0.0, xlabel='input', ylabel='output',
@@ -307,6 +317,7 @@ def visualize_pinball(model, ax=None, scale=1.0, offset=0.0, xlabel='input', yla
               flip=flip, level=depth, label=ylabel, up=False, vertical=vertical)
 
     fig.savefig(fig_name)
+
 
 if __name__ == "__main__":
     npdata = np.random.randint(100, size=(10, 5, 100))  # (length, n_layers, n_frame)
