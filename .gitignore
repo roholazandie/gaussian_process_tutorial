@@ -150,4 +150,4 @@ data/*
 
 pytorch_tutorial/wandb/*
 
-*.m
+*.mat
