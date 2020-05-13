@@ -15,6 +15,7 @@ from gpytorch.likelihoods import GaussianLikelihood
 from gpytorch.distributions import MultivariateNormal
 from gpytorch.mlls import VariationalELBO, PredictiveLogLikelihood
 import matplotlib.pyplot as plt
+from gpytorch_examples.data_utils import get_data
 
 
 class ApproxiateGaussianProcessModel(ApproximateGP):
@@ -81,47 +82,8 @@ Approximate Gaussian processes learn an approximate posterior distribution p(f(X
 q(u) is usually a gaussian with N(m, S) that we should approximate m and S
 '''
 
-# x_train = torch.linspace(0, 1, 100)
-# y_train = torch.cos(x_train * 2 * math.pi) + torch.randn(100).mul(x_train.pow(3) * 1.)
-#
-# fig, ax = plt.subplots(1, 1, figsize=(5, 3))
-# ax.scatter(x_train, y_train, c='k', marker='.', label="Data")
-# ax.set(xlabel="x", ylabel="y")
-# plt.show()
-
-def get_data():
-    if not os.path.isfile("elevators.mat"):
-        request.urlretrieve('https://drive.google.com/uc?export=download&id=1jhWL3YUHvXIaftia4qeAyDwVxo6j1alk', 'elevators.mat')
-
-    data = torch.Tensor(loadmat('elevators.mat')['data'])
-    X = data[:, :-1]
-    X = X - X.min(0)[0]
-    X = 2 * (X / X.max(0)[0]) - 1
-    y = data[:, -1]
-
-    n_train = int(np.floor(0.8 * len(X)))
-    x_train = X[:n_train, :].contiguous()
-    y_train = y[:n_train].contiguous()
-
-    x_test = X[n_train:, :].contiguous()
-    y_test = y[n_train:].contiguous()
-
-    # if torch.cuda.is_available():
-    #     x_train, y_train, x_test, y_test = x_train.cuda(), y_train.cuda(), x_test.cuda(), y_test.cuda()
-
-
-    train_dataset = TensorDataset(x_train, y_train)
-    train_loader = DataLoader(train_dataset, batch_size=500, shuffle=True)
-
-    test_dataset = TensorDataset(x_test, y_test)
-    test_loader = DataLoader(test_dataset, batch_size=500, shuffle=False)
-
-    return train_loader, test_loader, x_train, y_test, y_train.numel()
-
-
-
-train_loader, test_loader, x_train, y_test, n_train = get_data()
-
+train_loader, test_loader, x_train, x_test, y_test = get_data()
+n_train = x_train.shape[0]
 
 #method = "variationalelbo"
 method = "predictiveloglikelihood"
@@ -129,6 +91,16 @@ if method == "variationalelbo":
     '''
     The variational evidence lower bound - or ELBO - is the most common objective function. 
     It can be derived as an lower bound on the likelihood p(y|X)
+    
+    \mathcal{L}_\text{ELBO} &=
+  \mathbb{E}_{p_\text{data}( y, \mathbf x )} \left[
+    \log \mathbb{E}_{q(\mathbf u)} \left[  p( y \! \mid \! \mathbf u) \right]
+  \right] - \beta \: \text{KL} \left[ q( \mathbf u) \Vert p( \mathbf u) \right]
+  \\
+  &\approx \sum_{i=1}^N \mathbb{E}_{q( \mathbf u)} \left[
+    \log \int p( y_i \! \mid \! f_i) p(f_i \! \mid \! \mathbf u) \: d \mathbf f_i
+  \right] - \beta \: \text{KL} \left[ q( \mathbf u) \Vert p( \mathbf u) \right]
+    
     '''
     objective_function_cls = VariationalELBO
 else:
@@ -155,6 +127,9 @@ else:
 likelihood = GaussianLikelihood()
 objective_function = objective_function_cls(likelihood, model, n_train)
 optimizer = torch.optim.Adam(list(model.parameters()) + list(likelihood.parameters()), lr=0.1)
+
+model = model.cuda()
+likelihood = likelihood.cuda()
 
 model.train()
 likelihood.train()
@@ -185,13 +160,3 @@ with torch.no_grad():
 means = means[1:]
 error = torch.mean(torch.abs(means - y_test.cpu()))
 print(f" MAE: {error.item()}")
-
-# Plot model
-# fig, ax = plt.subplots(1, 1, figsize=(5, 3))
-# line, = ax.plot(x_train, mean, "blue")
-# ax.fill_between(x_train, f_lower, f_upper, color=line.get_color(), alpha=0.3, label="q(f)")
-# ax.fill_between(x_train, y_lower, y_upper, color=line.get_color(), alpha=0.1, label="p(y)")
-# ax.scatter(x_train, y_train, c='k', marker='.', label="Data")
-# ax.legend(loc="best")
-# ax.set(xlabel="x", ylabel="y")
-# plt.show()
