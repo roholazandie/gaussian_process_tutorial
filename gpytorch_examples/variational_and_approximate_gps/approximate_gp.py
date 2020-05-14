@@ -18,6 +18,21 @@ import matplotlib.pyplot as plt
 from gpytorch_examples.data_utils import get_data
 
 
+'''
+variational_distribution (or q) is the approximation of p (the GP prior ) becaue we can't calculate p directly.
+So we want a q* = argmin KL(q||p) but this is again directly hard to compute, then we can derive ELBO
+ELBO = KL(q_z||p_z) - likelihood 
+(in which z are inducing points) maximizing ELBO is like minimizing the KL(q||p). and
+likelihood =  E_q(log(P(Y|f_d))
+the only thing that remains is that to maximize this (or minimize the negative of ELBO) by taking gradients using torch
+just like any other loss function we ever had!
+
+inducing points (Z's) are not new paramters they are like psudo data and choosing them in the right way
+help us to save a lot of computation. That's why using inducing points are called SparseGP
+In the most naive scenario we choose Z's randomly but a big portion of researches in GP is around
+finding the best way for Z's.
+'''
+
 class ApproxiateGaussianProcessModel(ApproximateGP):
 
     def __init__(self, inducting_points):
@@ -27,7 +42,8 @@ class ApproxiateGaussianProcessModel(ApproximateGP):
         This is the most general/expressive option for approximate GPs
         '''
         variational_distribution = CholeskyVariationalDistribution(inducting_points.size(-2))
-        variational_strategy = VariationalStrategy(self, inducting_points, variational_distribution, learn_inducing_locations=True)
+        variational_strategy = VariationalStrategy(self, inducting_points, variational_distribution,
+                                                   learn_inducing_locations=True)
         super().__init__(variational_strategy)
         self.mean = ConstantMean()
         self.covar = ScaleKernel(RBFKernel())
@@ -38,16 +54,17 @@ class ApproxiateGaussianProcessModel(ApproximateGP):
         return MultivariateNormal(x_mean, x_covar)
 
 
-
 class MeanFieldApproximateGaussianProcessModel(ApproximateGP):
     def __init__(self, inducting_points):
         '''
-        As a default, we'll use the default VariationalStrategy class with a CholeskyVariationalDistribution.
-        The CholeskyVariationalDistribution class allows S to be on any positive semidefinite matrix.
-        This is the most general/expressive option for approximate GPs
+        One way to reduce the number of parameters is to restrict that $\mathbf S$ is only diagonal.
+        This is less expressive, but the number of parameters is now linear in $m$ instead of quadratic.
+        All we have to do is take the previous example, and change CholeskyVariationalDistribution S
+         to MeanFieldVariationalDistribution S.
         '''
         variational_distribution = MeanFieldVariationalDistribution(inducting_points.size(-2))
-        variational_strategy = VariationalStrategy(self, inducting_points, variational_distribution, learn_inducing_locations=True)
+        variational_strategy = VariationalStrategy(self, inducting_points, variational_distribution,
+                                                   learn_inducing_locations=True)
         super().__init__(variational_strategy)
         self.mean = ConstantMean()
         self.covar = ScaleKernel(RBFKernel())
@@ -66,7 +83,8 @@ class MAPApproximateGaussianProcessModel(ApproximateGP):
         for u. In other words, this corresponds to performing MAP estimation rather than variational inference.
         '''
         variational_distribution = DeltaVariationalDistribution(inducting_points.size(-2))
-        variational_strategy = VariationalStrategy(self, inducting_points, variational_distribution, learn_inducing_locations=True)
+        variational_strategy = VariationalStrategy(self, inducting_points, variational_distribution,
+                                                   learn_inducing_locations=True)
         super().__init__(variational_strategy)
         self.mean = ConstantMean()
         self.covar = ScaleKernel(RBFKernel())
@@ -85,7 +103,7 @@ q(u) is usually a gaussian with N(m, S) that we should approximate m and S
 train_loader, test_loader, x_train, x_test, y_test = get_data()
 n_train = x_train.shape[0]
 
-#method = "variationalelbo"
+# method = "variationalelbo"
 method = "predictiveloglikelihood"
 if method == "variationalelbo":
     '''
@@ -106,12 +124,11 @@ if method == "variationalelbo":
 else:
     objective_function_cls = PredictiveLogLikelihood
 
-
-#inducing_points = torch.linspace(0, 1)
+# inducing_points = torch.linspace(0, 1)
 inducing_points = torch.randn(128, x_train.size(-1), dtype=x_train.dtype, device=x_train.device)
 
-#model_name = "approximate_gaussian"
-#model_name = "meanfield"
+# model_name = "approximate_gaussian"
+# model_name = "meanfield"
 model_name = "map_approximate"
 
 if model_name.lower() == "approximate_gaussian":
@@ -122,7 +139,6 @@ elif model_name.lower() == "map_approximate":
     model = MAPApproximateGaussianProcessModel(inducing_points)
 else:
     raise ValueError(f"Unknown model_name {model_name}")
-
 
 likelihood = GaussianLikelihood()
 objective_function = objective_function_cls(likelihood, model, n_train)
@@ -146,7 +162,6 @@ for i in range(n_epochs):
 
     print(f'Iter {i} - Loss: {loss.item()}')
 
-
 # Test
 model.eval()
 likelihood.eval()
@@ -155,7 +170,6 @@ with torch.no_grad():
     for x_batch, y_batch in test_loader:
         preds = model(x_batch)
         means = torch.cat([means, preds.mean.cpu()])
-
 
 means = means[1:]
 error = torch.mean(torch.abs(means - y_test.cpu()))

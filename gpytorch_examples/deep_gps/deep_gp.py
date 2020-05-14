@@ -25,7 +25,7 @@ class DeepGaussianProcessHiddenLayer(DeepGPLayer):
             batch_shape = torch.Size([output_dims])
 
         variational_distribution = CholeskyVariationalDistribution(num_inducing_points=num_inducing,
-                                                                    batch_shape=batch_shape)
+                                                                   batch_shape=batch_shape)
 
         variational_strategy = VariationalStrategy(self,
                                                    inducing_points,
@@ -63,8 +63,8 @@ class DeepGaussianProcessHiddenLayer(DeepGPLayer):
         return super().__call__(x, are_samples=bool(len(other_inputs)))
 
 
-
 num_output_dims = 10
+
 
 class DeepGaussianProcess(DeepGP):
 
@@ -102,19 +102,21 @@ class DeepGaussianProcess(DeepGP):
         return torch.cat(mus, dim=-1), torch.cat(variances, dim=-1), torch.cat(loglikelihoods, dim=-1)
 
 
-
 train_loader, test_loader, x_train, x_test, y_test = get_data()
 
 model = DeepGaussianProcess(x_train_shape=x_train.shape)
 if torch.cuda.is_available():
     model = model.cuda()
 
-
-#Because deep GPs use some amounts of internal sampling (even in the stochastic variational setting),
+# Because deep GPs use some amounts of internal sampling (even in the stochastic variational setting),
 # we need to handle the objective function (e.g. the ELBO) in a slightly different way.
 num_samples = 10
 
 optimizer = torch.optim.Adam([{"params": model.parameters()}], lr=0.1)
+
+'''
+DeepApproximateMLL only adds the elbo losses of each layer!
+'''
 
 marginal_loglikelihood = DeepApproximateMLL(VariationalELBO(model.likelihood, model, x_train.shape[-2]))
 
@@ -130,8 +132,6 @@ for i in range(n_epochs):
             optimizer.step()
 
     print(f"epochs {i}, loss {loss.item()}")
-
-
 
 ## test and evaluate the model
 

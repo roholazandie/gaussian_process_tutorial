@@ -19,6 +19,8 @@ class SparseGaussianProcessRegressionModel(models.ExactGP):
         self.mean = ConstantMean()
         base_kernel = ScaleKernel(RBFKernel())
         # self.covariance = base_kernel
+        # here we chose inducing points very randomly just based on the first five
+        # samples of training data but it can be much better or smarter
         self.covariance = InducingPointKernel(base_kernel,
                                               inducing_points=x_train[:5],
                                               likelihood=likelihood)
