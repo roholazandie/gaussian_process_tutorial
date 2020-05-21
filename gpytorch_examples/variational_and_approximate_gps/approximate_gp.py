@@ -15,7 +15,7 @@ from gpytorch.likelihoods import GaussianLikelihood
 from gpytorch.distributions import MultivariateNormal
 from gpytorch.mlls import VariationalELBO, PredictiveLogLikelihood
 import matplotlib.pyplot as plt
-from gpytorch_examples.data_utils import get_data
+from gpytorch_examples.data_utils import get_elevators_data
 
 
 '''
@@ -100,7 +100,7 @@ Approximate Gaussian processes learn an approximate posterior distribution p(f(X
 q(u) is usually a gaussian with N(m, S) that we should approximate m and S
 '''
 
-train_loader, test_loader, x_train, x_test, y_test = get_data()
+train_loader, test_loader, x_train, x_test, y_test = get_elevators_data()
 n_train = x_train.shape[0]
 
 # method = "variationalelbo"

@@ -10,7 +10,7 @@ from gpytorch.likelihoods import BernoulliLikelihood, GaussianLikelihood
 from gpytorch.kernels import RBFKernel, ScaleKernel
 from gpytorch.models.deep_gps import DeepGPLayer, DeepGP
 from gpytorch.settings import num_likelihood_samples
-from gpytorch_examples.data_utils import get_data
+from gpytorch_examples.data_utils import get_elevators_data
 from matplotlib import pyplot as plt
 
 
@@ -102,7 +102,7 @@ class DeepGaussianProcess(DeepGP):
         return torch.cat(mus, dim=-1), torch.cat(variances, dim=-1), torch.cat(loglikelihoods, dim=-1)
 
 
-train_loader, test_loader, x_train, x_test, y_test = get_data()
+train_loader, test_loader, x_train, x_test, y_test = get_elevators_data()
 
 model = DeepGaussianProcess(x_train_shape=x_train.shape)
 if torch.cuda.is_available():
